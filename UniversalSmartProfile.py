@@ -2,9 +2,8 @@ clr.AddReference("mscorlib")
 clr.AddReference("SmartCore.Model")
 clr.AddReference("Extensions.GDnt")
 import os
-import sys
-from datetime import date
 from datetime import datetime
+import time
 from System import Console
 from System.IO import File, Path
 from System.Threading import Thread
@@ -19,31 +18,31 @@ class ImportMetadata:
         self.MachineNumber = machine_number
 
 
-def GetImportMetadata(importFilepath):	
-	with open(importFilepath, "r") as file:
-		data = file.readlines()
-		partNumberLine = data[0].split("\t")[1].strip('"').strip('\n').rstrip('"')
-		employeeIdLine = data[1].split("\t")[1].strip('"').strip('\n').rstrip('"')
-        jobNumberLine = data[2].split("\t")[1].strip('"').strip('\n').rstrip('"')
-        machineNumberLine = data[3].split("\t")[1].strip('"').strip('\n').rstrip('"')
-        return ImportMetadata(partNumberLine, employeeIdLine, jobNumberLine, machineNumberLine)
+def get_import_metadata(import_filepath):
+    with open(import_filepath, "r") as file:
+        data = file.readlines()
+        part_number_line = data[0].split("\t")[1].strip('"').strip('\n').rstrip('"')
+        employee_id_line = data[1].split("\t")[1].strip('"').strip('\n').rstrip('"')
+        job_number_line = data[2].split("\t")[1].strip('"').strip('\n').rstrip('"')
+        machine_number_line = data[3].split("\t")[1].strip('"').strip('\n').rstrip('"')
+    return ImportMetadata(part_number_line, employee_id_line, job_number_line, machine_number_line)
 
 
-def GetReportFilepath(importMetadata):
-    reportPath = "S:\\Smart Profile\\"
-    reportPath += importMetadata.PartNumber
-    reportPath += "_" + importMetadata.MachineNumber
-    reportPath += "_" + datetime.now().strftime('%Y%m%d%H%M%S') + ".pdf"
-    return reportPath.upper()	
+def get_report_filepath(import_metadata):
+    report_path = "S:\\Smart Profile\\"
+    report_path += import_metadata.PartNumber
+    report_path += "_" + import_metadata.MachineNumber
+    report_path += "_" + datetime.now().strftime('%Y%m%d%H%M%S') + ".pdf"
+    return report_path.upper()
 
 
-def GetProjectFilepath(importMetadata):
-    smartProfileFilePath = "V:\\Inspect Programs\\Micro-Vu\\Approved Programs\\Smart Profile\\"
-    smartProfileFilePath += importMetadata.PartNumber + ".spp"
-    return smartProfileFilePath.upper()
+def get_project_filepath(import_metadata):
+    smart_profile_file_path = "V:\\Inspect Programs\\Micro-Vu\\Approved Programs\\Smart Profile\\"
+    smart_profile_file_path += import_metadata.PartNumber + ".spp"
+    return smart_profile_file_path.upper()
 
 
-def GetImporterOptions():
+def get_importer_options():
     options = CreatePointImporterOptions()
     options.CommaIsDecimalPoint = False
     options.CommaIsSeparator = False
@@ -66,34 +65,50 @@ def GetImporterOptions():
     options.ZSourceColumn = -1
     return options
 
-	
-def Execute():
 
-	importFilepath = "C:\\Text\\OUTPUT.txt"
-	importMetadata = GetImportMetadata(importFilepath)
-	reportFilepath = GetReportFilepath(importMetadata)
-	projectFilePath = GetProjectFilepath(importMetadata)
-	importerOptions = GetImporterOptions()
+def execute():
+    import_filepath = "C:\\Text\\OUTPUT.txt"
 
-	StartNewIteration()
-	ChangeProject(projectFilePath)
-	SelectAllMeasuredPoints()
-	DeleteSelected()
-	ImportMeasuredPoints(importFilepath, importerOptions)
-	
-	ResetAlignment()
-	QuickAlign()
-	Evaluate()
-	File.Delete(importFilepath)
-	context.Project.Document.ProjectData.Metadata = Metadata("JOB_NUMBER", importMetadata.JobNumber)
-	context.Project.Document.ProjectData.Metadata = Metadata("EMPLOYEE_NUMBER", importMetadata.EmployeeID)
-	context.Project.Document.ProjectData.Metadata = Metadata("MACHINE_NUMBER", importMetadata.MachineNumber)
-	
-	reporting = GetExtensionContext("reporting")
-	reporting.ExportReport("Default", reportFilepath, False)
+    if not os.path.exists(import_filepath):
+        for count in range(5):
+            time.sleep(1)
+            if os.path.exists(import_filepath):
+                break
+
+    if not os.path.exists(import_filepath):
+        MessageBox("'C:\\Text\\OUTPUT.txt' does not exist.")
+        return
+
+    try:
+        import_metadata = get_import_metadata(import_filepath)
+    except ValueError:
+        MessageBox("Invalid data in c:\\text\\output.txt")
+        return
+    except IOError:
+        MessageBox("Output file is locked.")
+        return
+
+    report_filepath = get_report_filepath(import_metadata)
+    project_file_path = get_project_filepath(import_metadata)
+    importer_options = get_importer_options()
+
+    StartNewIteration()
+    ChangeProject(project_file_path)
+    SelectAllMeasuredPoints()
+    DeleteSelected()
+    ImportMeasuredPoints(import_filepath, importer_options)
+
+    ResetAlignment()
+    QuickAlign()
+    Evaluate()
+    File.Delete(import_filepath)
+    context.Project.Document.ProjectData.Metadata = Metadata("JOB_NUMBER", import_metadata.JobNumber)
+    context.Project.Document.ProjectData.Metadata = Metadata("EMPLOYEE_NUMBER", import_metadata.EmployeeID)
+    context.Project.Document.ProjectData.Metadata = Metadata("MACHINE_NUMBER", import_metadata.MachineNumber)
+
+    reporting = GetExtensionContext("reporting")
+    reporting.ExportReport("Default", report_filepath, False)
 
 
-
-Execute()
+execute()
 Quit()
-
